@@ -2,6 +2,7 @@ import logging
 import sys
 from datetime import datetime
 from multiprocessing import cpu_count
+from os import PathLike
 from pathlib import Path
 
 import pandas as pd
@@ -9,8 +10,12 @@ import pandas as pd
 from lead_lag import LeadLag
 
 
-def bitmex_date_parser(x):
-    return [datetime.strptime(x_, '%Y-%m-%dD%H:%M:%S.%f000') for x_ in x]
+def parse_ftx_date(s: str) -> datetime:
+    try:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S.%f%z")
+    except ValueError:
+        return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S%z")
+    raise ValueError(f"Unknown date format: {s}")
 
 
 def main():
@@ -26,14 +31,15 @@ def main():
     ll.plot_results()
 
 
-def read_data(bitmex, ftx):
-    bitmex = pd.read_csv(bitmex, index_col=0, parse_dates=True, date_parser=bitmex_date_parser, compression='zip')
+def read_data(bitmex_file: PathLike | str, ftx_file: PathLike | str) -> tuple[pd.DataFrame, pd.DataFrame]:
+    bitmex = pd.read_csv(bitmex_file, index_col="timestamp", parse_dates=True, date_format="%Y-%m-%dD%H:%M:%S.%f000", compression='zip')
     bitmex = bitmex[bitmex['symbol'] == 'XBTUSD']
     bitmex = bitmex[bitmex['price'].diff() != 0]
     bitmex = bitmex['price']
-    ftx = pd.read_csv(ftx, index_col=0, parse_dates=True, compression='zip')
+    ftx = pd.read_csv(ftx_file, index_col="time", compression='zip')
     ftx = ftx[ftx['price'].diff() != 0]
     ftx = ftx['price']
+    ftx.index = ftx.index.map(parse_ftx_date)
     return bitmex, ftx
 
 
