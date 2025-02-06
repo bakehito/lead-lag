@@ -15,7 +15,7 @@ def prune_to_specific_precision(d: pd.Series, target_precision_ms) -> pd.Series:
     try:
         return d[0:-1][np.array(np.diff(d.index) / 1e6, dtype=int) > target_precision_ms * 1e3]
     except Exception:
-        return d[0:-1][np.array([a.total_seconds() * 1e3 > target_precision_ms for a in np.diff(d.index)])]
+        return d[0:-1][np.array(np.diff(d.index).astype(np.timedelta64) / 1e3).astype(np.float64) / 1e3 > target_precision_ms]
 
 
 def lag(ts1: pd.Series, ts2: pd.Series, max_lag: Union[float, int]) -> Optional[float]:
